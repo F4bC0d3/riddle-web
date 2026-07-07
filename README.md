@@ -2,9 +2,11 @@
 
 **Tom Riddle's diary, in the browser.** Write on the screen with your finger or stylus. After a pause, the diary drinks your ink — your words fade — and a reply writes itself back in a flowing hand, then fades away.
 
+> **Live demo:** [https://tomriddle.f4b.workers.dev](https://tomriddle.f4b.workers.dev)
+
 Web port of [MaximeRivest/riddle](https://github.com/MaximeRivest/riddle) (originally built for the reMarkable Paper Pro). Runs on any device with a browser — phones, tablets, desktops. Samsung S-Pen, Apple Pencil, and Wacom styli all get full pressure sensitivity.
 
-**BYOK (Bring Your Own Key):** Each user enters their own API key in the settings panel. No backend secrets. Deploy once, everyone uses it.
+**BYOK (Bring Your Own Key):** Each user enters their own API key in the settings panel. No backend secrets. Deploy once, everyone uses it. Works out of the box with the built-in NVIDIA NIM backend — no key required.
 
 ## Deploy
 
@@ -22,6 +24,19 @@ That's it. No secrets to set. You'll get `https://tomriddle.<your-subdomain>.wor
 3. Enter your API key + base URL + model (optional — works without a key via the built-in NVIDIA backend)
 4. Write on the page, rest your pen, and the diary answers
 
+## How it works
+
+```
+Write on canvas → 2.8s idle → ink fades → PNG sent to vision LLM → reply streams back word-by-word in Dancing Script → fades away
+```
+
+The entire app is a single HTML file (`src/index.html`). The Cloudflare Worker (`src/worker.js`) serves it and provides two API endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/ask` | Default backend — uses NVIDIA NIM with a server-side secret (no user key needed) |
+| `POST /api/proxy` | BYOK — forwards to user's own API with CORS headers (for providers like OpenAI that don't send CORS) |
+
 ## Compatible providers
 
 | Provider | Base URL | CORS from browser? | Notes |
@@ -29,7 +44,7 @@ That's it. No secrets to set. You'll get `https://tomriddle.<your-subdomain>.wor
 | **NVIDIA NIM** | `https://integrate.api.nvidia.com/v1` | ✅ Yes | Default backend — free tier, no key needed for visitors |
 | **OpenRouter** | `https://openrouter.ai/api/v1` | ✅ Yes | Use any model with `openai/` prefix |
 | **Groq** | `https://api.groq.com/openai/v1` | ✅ Yes | Fast inference, vision models available |
-| **OpenAI** | `https://api.openai.com/v1` | ❌ No | Needs CORS proxy (see below) |
+| **OpenAI** | `https://api.openai.com/v1` | ❌ No | Routed through `/api/proxy` automatically |
 | **Ollama (local)** | `http://localhost:11434/v1` | ⚠️ Same machine only | `OLLAMA_ORIGINS=*` env var required |
 | **Any OpenAI-compatible** | varies | check provider docs | Must support vision input |
 
@@ -44,10 +59,6 @@ export OLLAMA_ORIGINS="*"
 ```
 
 Then in the diary settings, use `http://localhost:11434/v1` as the base URL and your vision model name (e.g. `llama3.2-vision`).
-
-### OpenAI CORS proxy
-
-OpenAI's API doesn't send CORS headers, so direct browser calls fail. The worker's `/api/proxy` endpoint handles this — it forwards the request server-side with CORS headers. No separate worker needed.
 
 ## Features
 
