@@ -91,7 +91,7 @@ async function handleDefaultAsk(request, env) {
         { type: 'image_url', image_url: { url: image } },
       ]},
     ],
-    max_tokens: 300,
+    max_tokens: 1000,
     temperature: 0.7,
   };
 
