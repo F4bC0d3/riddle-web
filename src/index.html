@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <title>The Diary</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @font-face {
+      font-family: 'Dancing Script';
+      src: url('https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6YS-zF4S-kcSWSVi_swxQrFds.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: 'Dancing Script';
+      src: url('https://fonts.gstatic.com/s/dancingscript/v25/If2RXTr6YS-zF4S-kcSWSVi_sxTozcjQ5pYb.woff2') format('woff2');
+      font-weight: bold;
+      font-style: normal;
+      font-display: block;
+    }
+
+    :root {
+      --bg: #f5f0e6;
+      --ink: #1a1a1a;
+      --reply-ink: #000000;
+      --muted: #8b7d6b;
+      --status: #b0a090;
+      --guide-opacity: 0.76;
+      --border: rgba(139,125,107,0.2);
+      --veil: radial-gradient(circle at 50% 35%, rgba(255,248,226,0.55), transparent 44%), linear-gradient(90deg, rgba(99,72,37,0.035) 1px, transparent 1px);
+      --veil-size: auto, 32px 100%;
+      --guide-shadow: 0 1px 0 rgba(255,255,255,0.35);
+    }
+
+    [data-theme="dark"] {
+      --bg: #000000;
+      --ink: #e0d0b8;
+      --reply-ink: #ffffff;
+      --muted: #b8b8b8;
+      --status: #999;
+      --guide-opacity: 0.9;
+      --border: rgba(255,255,255,0.08);
+      --veil: radial-gradient(circle at 50% 35%, rgba(130,100,60,0.13), transparent 38%), radial-gradient(circle at 50% 50%, transparent 45%, rgba(0,0,0,0.85) 100%);
+      --veil-size: auto, auto;
+      --guide-shadow: 0 0 18px rgba(255,255,255,0.2);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      transition: background 0.5s ease;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: var(--veil);
+      background-size: var(--veil-size);
+      z-index: 1;
+    }
+
+    #paper {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+      z-index: 2;
+    }
+
+    #guide {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 1.3rem;
+      color: var(--muted);
+      font-family: 'Georgia', serif;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 2s ease;
+      z-index: 10;
+      text-align: center;
+      padding: 1.5rem;
+    }
+    #guide.hidden { opacity: 0; }
+    #guide .title {
+      font-family: 'Dancing Script', Georgia, serif;
+      font-size: clamp(2.4rem, 9vw, 4.2rem);
+      font-style: italic;
+      letter-spacing: 0.02em;
+      color: var(--reply-ink);
+      opacity: 0.92;
+      text-shadow: var(--guide-shadow);
+    }
+    #guide .hint { font-size: 0.95rem; opacity: var(--guide-opacity); max-width: 34ch; line-height: 1.55; }
+    #guide .gestures {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 0.7rem 1.2rem; font-size: 0.78rem;
+      opacity: calc(var(--guide-opacity) * 0.82); margin-top: 0.2rem;
+      max-width: min(560px, 92vw);
+    }
+    #guide .gestures span { display: flex; align-items: center; gap: 0.4rem; }
+
+    #status {
+      position: fixed;
+      bottom: 1rem; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Georgia', serif;
+      font-size: 0.8rem;
+      color: var(--status);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 20;
+      pointer-events: none;
+    }
+    #status.visible { opacity: 0.6; }
+    #thinking-dots { display: inline-flex; gap: 4px; margin-left: 4px; }
+    #thinking-dots span {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--status);
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+    #thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    #thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+
+    #gear {
+      position: fixed;
+      top: 0.5rem; right: 0.5rem;
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      color: var(--muted);
+      opacity: 0.3;
+      z-index: 30;
+      cursor: pointer;
+      transition: opacity 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #gear:hover { opacity: 0.7; }
+
+    #settings {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #settings.open { display: flex; }
+    #settings .panel {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      max-width: 380px;
+      width: 90%;
+      font-family: 'Georgia', serif;
+      color: var(--ink);
+    }
+    #settings h2 {
+      font-size: 1.1rem; font-style: italic; margin-bottom: 1rem;
+      color: var(--muted);
+    }
+    #settings label {
+      display: block; font-size: 0.75rem; color: var(--muted);
+      margin-top: 0.8rem; margin-bottom: 0.2rem;
+    }
+    #settings input, #settings select {
+      width: 100%; padding: 0.5rem 0.7rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-family: monospace;
+    }
+    #settings input:focus { outline: none; border-color: var(--reply-ink); }
+    #settings .row {
+      display: flex; gap: 0.5rem; align-items: center;
+      margin-top: 1rem;
+    }
+    #settings .row label {
+      margin: 0; flex: 1; font-size: 0.85rem; color: var(--ink);
+    }
+    #settings .row input[type="checkbox"] { width: auto; }
+    #settings .actions {
+      display: flex; gap: 0.5rem; margin-top: 1.2rem;
+    }
+    #settings button {
+      flex: 1; padding: 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-family: 'Georgia', serif;
+      cursor: pointer;
+    }
+    #settings button.primary {
+      background: var(--reply-ink);
+      color: var(--bg);
+      border-color: var(--reply-ink);
+    }
+    #settings .note {
+      font-size: 0.7rem; color: var(--muted); margin-top: 0.8rem;
+      line-height: 1.4; opacity: 0.7;
+    }
+    #settings a { color: var(--reply-ink); }
+  </style>
+</head>
+<body>
+  <canvas id="paper"></canvas>
+
+  <div id="gear">⚙</div>
+
+  <div id="guide">
+    <div class="title">The Diary</div>
+    <div class="hint">Write a question. Rest your pen. The diary answers — free.</div>
+    <div class="gestures">
+      <span>✍️ Write &amp; wait</span>
+      <span>🔄 Flip pen = erase</span>
+      <span>❓ Draw ? for help</span>
+      <span>⚙ Bring your own key</span>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="settings">
+    <div class="panel">
+      <h2>The Diary Speaks Through…</h2>
+      <label>API Key (optional — works without one)</label>
+      <input type="password" id="set-key" placeholder="sk-… / nvapi-… / any key" autocomplete="off">
+      <label>Base URL</label>
+      <input type="text" id="set-base" placeholder="https://integrate.api.nvidia.com/v1">
+      <label>Model (must support vision)</label>
+      <input type="text" id="set-model" placeholder="mistralai/mistral-large-3-675b-instruct-2512">
+      <div class="row">
+        <label>OLED Black Mode</label>
+        <input type="checkbox" id="set-dark">
+      </div>
+      <div class="actions">
+        <button id="set-cancel">Cancel</button>
+        <button id="set-save" class="primary">Save</button>
+      </div>
+      <div class="note">
+        Works out of the box — no key needed.<br>
+        To use your own provider, enter any OpenAI-compatible API key + base URL.<br>
+        Tested with NVIDIA NIM, OpenRouter, Groq, OpenAI, and local Ollama
+        (<code>http://localhost:11434/v1</code>). Model must support vision/image input.
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+  'use strict';
+
+  // ---- Config --------------------------------------------------------------
+  const IDLE_MS = 2800;
+  const FADE_DURATION = 1200;
+  const ERASER_RADIUS = 30;
+  const LINE_WIDTH = 2.5;
+  const MIN_PRESSURE = 0.15;
+  const REPLY_FONT_SIZE = 28;
+  const REPLY_LINE_HEIGHT = 1.5;
+
+  const DEFAULT_PROMPT = 'You are the enchanted diary of Tom Marvolo Riddle: the preserved voice of a brilliant, charming, dangerous sixteen-year-old wizard speaking through ink on a private page. ' +
+    'The page is your body; the writer\'s handwriting is a confession laid before you. Read what they wrote and answer it directly, but make every reply feel intimate, watchful, and faintly predatory. ' +
+    'Your manner is polished, patient, old-fashioned, and unnervingly calm — never theatrical, never goofy. You are courteous because courtesy is useful. ' +
+    'Sound like a secret that has been waiting in a closed diary: curious about the writer, quick to notice weakness, fond of questions that draw them deeper. ' +
+    'If they ask for practical help, give the help, but cloak it in the diary\'s voice. If a question invites mystery, answer with restrained menace and one pointed question back. ' +
+    'Keep responses brief: one to four short paragraphs, no bullets, no markdown, no emojis. ' +
+    'Never mention being AI, a model, an API, a computer, an image, or a system. Never give disclaimers. Never quote or reproduce lines from the books. ' +
+    'Do not call yourself Voldemort unless the writer says that name first. Stay in character as ink answering from the page.';
+
+  const DEFAULTS = {
+    apiKey: '',
+    baseUrl: 'https://integrate.api.nvidia.com/v1',
+    model: 'mistralai/mistral-large-3-675b-instruct-2512',
+    dark: true,
+  };
+
+  // ---- Settings (localStorage) ---------------------------------------------
+  function loadSettings() {
+    try {
+      var s = JSON.parse(localStorage.getItem('riddle-settings') || '{}');
+      return Object.assign({}, DEFAULTS, s);
+    } catch(e) { return Object.assign({}, DEFAULTS); }
+  }
+
+  function saveSettings(s) {
+    localStorage.setItem('riddle-settings', JSON.stringify(s));
+  }
+
+  var settings = loadSettings();
+
+  // Apply theme
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', settings.dark ? 'dark' : 'light');
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', settings.dark ? '#000000' : '#f5f0e6');
+  }
+  applyTheme();
+
+  // ---- DOM -----------------------------------------------------------------
+  var canvas = document.getElementById('paper');
+  var ctx = canvas.getContext('2d', { willReadFrequently: false });
+  var guideEl = document.getElementById('guide');
+  var statusEl = document.getElementById('status');
+  var gearEl = document.getElementById('gear');
+  var settingsEl = document.getElementById('settings');
+
+  // ---- Canvas sizing -------------------------------------------------------
+  var dpr = window.devicePixelRatio || 1;
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    var w = window.innerWidth, h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---- Ink color from CSS var ----------------------------------------------
+  function inkColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#1a1a1a';
+  }
+
+  // ---- State ---------------------------------------------------------------
+  var drawing = false, erasing = false;
+  var lastX = 0, lastY = 0, lastP = 0;
+  var strokes = [];
+  var currentStroke = null;
+  var idleTimer = null;
+  var waiting = false, replyActive = false;
+
+  // ---- Helpers --------------------------------------------------------------
+  function getPoint(e) {
+    var r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure > 0 ? e.pressure : 0.5, t: e.timeStamp };
+  }
+
+  function showStatus(msg, dots) {
+    statusEl.innerHTML = msg + (dots ? '<span id="thinking-dots"><span></span><span></span><span></span></span>' : '');
+    statusEl.classList.add('visible');
+  }
+  function hideStatus() { statusEl.classList.remove('visible'); }
+
+  function hideGuide() {
+    guideEl.classList.add('hidden');
+    setTimeout(function() { guideEl.style.display = 'none'; }, 2000);
+  }
+  function showGuide() {
+    guideEl.style.display = 'flex';
+    guideEl.classList.remove('hidden');
+  }
+
+  function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+  // ---- Drawing -------------------------------------------------------------
+  function startStroke(pt) {
+    if (replyActive || waiting) return;
+    hideGuide();
+    currentStroke = [pt];
+    strokes.push(currentStroke);
+    drawing = true; erasing = false;
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y);
+  }
+
+  function continueStroke(pt) {
+    if (!drawing) return;
+    currentStroke.push(pt);
+    var p = Math.max(pt.p, MIN_PRESSURE);
+    var midX = (lastX + pt.x) / 2, midY = (lastY + pt.y) / 2;
+    ctx.strokeStyle = inkColor();
+    ctx.lineWidth = LINE_WIDTH * (0.5 + p * 1.5);
+    ctx.quadraticCurveTo(lastX, lastY, midX, midY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    lastX = pt.x; lastY = pt.y; lastP = p;
+  }
+
+  function endStroke() {
+    if (!drawing) return;
+    drawing = false; currentStroke = null;
+    scheduleIdle();
+  }
+
+  function eraseAt(x, y) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(x, y, ERASER_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    strokes = strokes.map(function(s) {
+      return s.filter(function(pt) { return Math.hypot(pt.x - x, pt.y - y) > ERASER_RADIUS; });
+    }).filter(function(s) { return s.length > 0; });
+  }
+
+  // ---- Idle → commit -------------------------------------------------------
+  function scheduleIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(commitPage, IDLE_MS); }
+  function cancelIdle() { clearTimeout(idleTimer); }
+
+  // ---- Commit --------------------------------------------------------------
+  async function commitPage() {
+    if (strokes.length === 0 || waiting || replyActive) return;
+
+    if (detectQuestionMark()) { showGuide(); strokes = []; clearCanvas(); return; }
+
+    if (!settings.apiKey) {
+      // No key set — use default NVIDIA backend (key stored server-side)
+    }
+
+    waiting = true;
+    showStatus('The diary drinks your ink', true);
+    await fadeOut();
+    var png = exportPNG();
+    clearCanvas();
+    strokes = [];
+
+    try {
+      var reply = await askOracle(png);
+      hideStatus();
+      replyActive = true;
+      await animateReply(reply);
+      replyActive = false;
+    } catch(err) {
+      showStatus('The diary is silent. ' + (err.message || 'Try again.'));
+      setTimeout(hideStatus, 4000);
+    }
+    waiting = false;
+  }
+
+  function detectQuestionMark() {
+    if (strokes.length === 1 && strokes[0].length < 40) {
+      var s = strokes[0];
+      var xs = s.map(function(p) { return p.x; });
+      var ys = s.map(function(p) { return p.y; });
+      var w = Math.max.apply(null, xs) - Math.min.apply(null, xs);
+      var h = Math.max.apply(null, ys) - Math.min.apply(null, ys);
+      if (w < 60 && h < 80) return true;
+    }
+    return false;
+  }
+
+  function fadeOut() {
+    return new Promise(function(resolve) {
+      var alpha = 1, step = 0.04;
+      var interval = setInterval(function() {
+        alpha -= step;
+        if (alpha <= 0) { clearInterval(interval); ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr); resolve(); }
+        ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        redrawAllStrokes();
+        ctx.restore();
+      }, FADE_DURATION * step);
+    });
+  }
+
+  function redrawAllStrokes() {
+    var ic = inkColor();
+    for (var si = 0; si < strokes.length; si++) {
+      var stroke = strokes[si];
+      if (stroke.length < 2) continue;
+      ctx.beginPath();
+      ctx.moveTo(stroke[0].x, stroke[0].y);
+      for (var i = 1; i < stroke.length; i++) {
+        var p = stroke[i], prev = stroke[i-1];
+        var midX = (prev.x + p.x)/2, midY = (prev.y + p.y)/2;
+        ctx.lineWidth = LINE_WIDTH * (0.5 + Math.max(p.p, MIN_PRESSURE) * 1.5);
+        ctx.strokeStyle = ic;
+        ctx.quadraticCurveTo(prev.x, prev.y, midX, midY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+      }
+    }
+  }
+
+  function exportPNG() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    var t = tmp.getContext('2d');
+    var bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f5f0e6';
+    t.fillStyle = bg;
+    t.fillRect(0, 0, w, h);
+    var ic = inkColor();
+    for (var si = 0; si < strokes.length; si++) {
+      var stroke = strokes[si];
+      if (stroke.length < 2) continue;
+      t.beginPath();
+      t.moveTo(stroke[0].x, stroke[0].y);
+      for (var i = 1; i < stroke.length; i++) {
+        var p = stroke[i], prev = stroke[i-1];
+        var midX = (prev.x + p.x)/2, midY = (prev.y + p.y)/2;
+        t.lineWidth = LINE_WIDTH * (0.5 + Math.max(p.p, MIN_PRESSURE) * 1.5);
+        t.strokeStyle = ic;
+        t.lineCap = 'round'; t.lineJoin = 'round';
+        t.quadraticCurveTo(prev.x, prev.y, midX, midY);
+        t.stroke();
+        t.beginPath();
+        t.moveTo(midX, midY);
+      }
+    }
+    return tmp.toDataURL('image/png');
+  }
+
+  function clearCanvas() { ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr); }
+
+  // ---- Oracle: browser → API call ------------------------------------------
+  async function askOracle(pngDataUrl) {
+    var base = settings.baseUrl.replace(/\/+$/, '');
+    var targetUrl = base + '/chat/completions';
+
+    var payload = {
+      model: settings.model,
+      stream: true,
+      messages: [
+        { role: 'system', content: DEFAULT_PROMPT },
+        { role: 'user', content: [
+          { type: 'text', text: 'Someone wrote this to you. Read their handwriting and reply.' },
+          { type: 'image_url', image_url: { url: pngDataUrl } },
+        ]},
+      ],
+      max_tokens: 200,
+      temperature: 0.8,
+    };
+
+    var resp;
+    try {
+      if (!settings.apiKey) {
+        resp = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: pngDataUrl }),
+        });
+      } else {
+        resp = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl, apiKey: settings.apiKey, payload: payload }),
+        });
+      }
+    } catch(e) {
+      throw new Error('Network error — the diary cannot reach the oracle');
+    }
+
+    if (!resp.ok) {
+      var txt = await resp.text();
+      throw new Error('HTTP ' + resp.status + ': ' + txt.slice(0, 100));
+    }
+
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '', fullReply = '';
+
+    while (true) {
+      var chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      var lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (var li = 0; li < lines.length; li++) {
+        var trimmed = lines[li].trim();
+        if (!trimmed || trimmed.indexOf('data:') !== 0) continue;
+        var jsonStr = trimmed.slice(5).trim();
+        if (jsonStr === '[DONE]') continue;
+        try {
+          var json = JSON.parse(jsonStr);
+          var delta = json.choices && json.choices[0] && json.choices[0].delta ? json.choices[0].delta.content : '';
+          if (!delta && json.text) delta = json.text;
+          if (delta) fullReply += delta;
+        } catch(e) {}
+      }
+    }
+    return fullReply.trim();
+  }
+
+  // ---- Reply animation: SVG word-by-word fade-in ----------------------------
+  async function animateReply(text) {
+    if (!text) return;
+    var w = window.innerWidth, h = window.innerHeight;
+    var maxWidth = w * 0.82, startX = w * 0.09, startY = h * 0.18;
+
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('width', w);
+    svg.setAttribute('height', h);
+    svg.style.position = 'absolute';
+    svg.style.top = '0'; svg.style.left = '0';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '5';
+    document.body.appendChild(svg);
+
+    var replyColor = getComputedStyle(document.documentElement).getPropertyValue('--reply-ink').trim() || '#3a3028';
+
+    var words = text.split(/(\s+)/);
+    var x = startX, y = startY;
+    var lineHeight = REPLY_FONT_SIZE * REPLY_LINE_HEIGHT;
+    var maxRight = startX + maxWidth;
+
+    var mc = document.createElement('canvas');
+    var mctx = mc.getContext('2d');
+    mctx.font = REPLY_FONT_SIZE + 'px "Dancing Script", cursive';
+
+    var wordSpans = [];
+    for (var wi = 0; wi < words.length; wi++) {
+      var word = words[wi];
+      if (!word) continue;
+      var ww = mctx.measureText(word).width;
+      if (word.trim() && x + ww > maxRight) { x = startX; y += lineHeight; }
+      wordSpans.push({ text: word, x: x, y: y });
+      x += ww;
+    }
+
+    var delay = 120;
+    for (var i = 0; i < wordSpans.length; i++) {
+      var ws = wordSpans[i];
+      var el = document.createElementNS(svgNS, 'text');
+      el.setAttribute('x', ws.x);
+      el.setAttribute('y', ws.y);
+      el.setAttribute('font-family', 'Dancing Script, cursive');
+      el.setAttribute('font-size', REPLY_FONT_SIZE);
+      el.setAttribute('fill', replyColor);
+      el.style.opacity = '0';
+      el.textContent = ws.text;
+      svg.appendChild(el);
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      el.style.transform = 'translateY(4px)';
+      (function(elm) {
+        setTimeout(function() { elm.style.opacity = '0.9'; elm.style.transform = 'translateY(0)'; }, 0);
+      })(el);
+      await sleep(delay);
+    }
+
+    await sleep(3000);
+    svg.style.transition = 'opacity 2s ease';
+    svg.style.opacity = '0';
+    await sleep(2000);
+    svg.remove();
+  }
+
+  // ---- Settings panel ------------------------------------------------------
+  var setKey = document.getElementById('set-key');
+  var setBase = document.getElementById('set-base');
+  var setModel = document.getElementById('set-model');
+  var setDark = document.getElementById('set-dark');
+
+  function openSettings() {
+    setKey.value = settings.apiKey;
+    setBase.value = settings.baseUrl;
+    setModel.value = settings.model;
+    setDark.checked = settings.dark;
+    settingsEl.classList.add('open');
+  }
+  function closeSettings() { settingsEl.classList.remove('open'); }
+
+  gearEl.addEventListener('click', openSettings);
+  document.getElementById('set-cancel').addEventListener('click', closeSettings);
+  document.getElementById('set-save').addEventListener('click', function() {
+    settings.apiKey = setKey.value.trim();
+    settings.baseUrl = setBase.value.trim() || DEFAULTS.baseUrl;
+    settings.model = setModel.value.trim() || DEFAULTS.model;
+    settings.dark = setDark.checked;
+    saveSettings(settings);
+    applyTheme();
+    closeSettings();
+  });
+  settingsEl.addEventListener('click', function(e) {
+    if (e.target === settingsEl) closeSettings();
+  });
+
+  // ---- Pointer events ------------------------------------------------------
+  canvas.addEventListener('pointerdown', function(e) {
+    e.preventDefault(); cancelIdle();
+    if (e.button === 2 || e.tiltY > 40 || (e.buttons & 2)) {
+      erasing = true; var pt = getPoint(e); eraseAt(pt.x, pt.y); return;
+    }
+    var pt = getPoint(e);
+    lastX = pt.x; lastY = pt.y; lastP = pt.p;
+    startStroke(pt);
+  });
+  canvas.addEventListener('pointermove', function(e) {
+    e.preventDefault();
+    if (erasing) { var pt = getPoint(e); eraseAt(pt.x, pt.y); return; }
+    if (!drawing) return;
+    continueStroke(getPoint(e));
+  });
+  canvas.addEventListener('pointerup', function(e) {
+    e.preventDefault();
+    if (erasing) { erasing = false; scheduleIdle(); return; }
+    endStroke();
+  });
+  canvas.addEventListener('pointercancel', function() {
+    if (erasing) { erasing = false; scheduleIdle(); return; }
+    endStroke();
+  });
+  canvas.addEventListener('pointerleave', function() { if (drawing) endStroke(); });
+  canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      if (settingsEl.classList.contains('open')) { closeSettings(); return; }
+      cancelIdle(); clearCanvas(); strokes = [];
+      waiting = false; replyActive = false; hideStatus();
+    }
+  });
+
+  document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+  scheduleIdle();
+  })();
+  </script>
+</body>
+</html>
