@@ -78,7 +78,7 @@ async function handleDefaultAsk(request, env) {
     return jsonError('Missing image', 400);
   }
 
-  const model = body.model || 'google/gemma-4-26b-a4b-it:free';
+  const model = body.model || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
   const baseUrl = 'https://openrouter.ai/api/v1';
 
   const payload = {
@@ -98,7 +98,7 @@ async function handleDefaultAsk(request, env) {
   // Try NVIDIA first, fall back to OpenRouter free
   const apiKeys = [
     { key: env.NVIDIA_API_KEY, url: 'https://integrate.api.nvidia.com/v1', model: 'mistralai/mistral-large-3-675b-instruct-2512' },
-    { key: env.OPENROUTER_API_KEY, url: 'https://openrouter.ai/api/v1', model: 'google/gemma-4-26b-a4b-it:free' },
+    { key: env.OPENROUTER_API_KEY, url: 'https://openrouter.ai/api/v1', model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free' },
   ];
 
   for (const provider of apiKeys) {
