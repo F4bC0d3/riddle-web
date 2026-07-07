@@ -575,7 +575,7 @@
           { type: 'image_url', image_url: { url: pngDataUrl } },
         ]},
       ],
-      max_tokens: 300,
+      max_tokens: 1000,
       temperature: 0.7,
     };
 
@@ -623,10 +623,7 @@
         try {
           var json = JSON.parse(jsonStr);
           var delta = json.choices && json.choices[0] && json.choices[0].delta ? json.choices[0].delta.content : '';
-          // Ollama Cloud puts output in reasoning field, not content
-          if (!delta && json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.reasoning) {
-            delta = json.choices[0].delta.reasoning;
-          }
+          // Some providers (Ollama) put output in reasoning field — never show reasoning, only content
           if (!delta && json.text) delta = json.text;
           if (delta) fullReply += delta;
         } catch(e) {}
