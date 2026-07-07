@@ -1,0 +1,13 @@
+{
+  "name": "riddle-web",
+  "version": "1.0.0",
+  "description": "Tom Riddle's diary — web port. Write on screen, the diary answers in handwritten ink.",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
