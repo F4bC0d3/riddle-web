@@ -6,23 +6,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#000000">
   <title>The Diary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    @font-face {
-      font-family: 'Dancing Script';
-      src: url('https://fonts.gstatic.com/s/dancingscript/v29/If2RXTr6YS-zF4S-kcSWSVi_szLgiuE.woff2') format('woff2');
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: 'Dancing Script';
-      src: url('https://fonts.gstatic.com/s/dancingscript/v29/If2RXTr6YS-zF4S-kcSWSVi_szLgiuE.woff2') format('woff2');
-      font-weight: 700;
-      font-style: normal;
-      font-display: swap;
-    }
 
     :root {
       --bg: #f5f0e6;
@@ -230,10 +218,172 @@
       line-height: 1.4; opacity: 0.7;
     }
     #settings a { color: var(--reply-ink); }
+
+    /* ---- Auth overlay ---- */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 200;
+      transition: opacity 0.6s ease;
+      font-family: 'Georgia', serif;
+    }
+    #auth-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #auth-overlay .auth-inner {
+      text-align: center;
+      padding: 1.5rem;
+      max-width: 360px;
+      width: 90%;
+    }
+    #auth-overlay .auth-title {
+      font-family: 'Dancing Script', Georgia, serif;
+      font-size: clamp(2rem, 7vw, 3.2rem);
+      color: var(--reply-ink);
+      margin-bottom: 0.5rem;
+      opacity: 0.9;
+    }
+    #auth-overlay .auth-subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      opacity: 0.7;
+      line-height: 1.5;
+    }
+    #auth-overlay input[type="text"] {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 0.95rem;
+      font-family: 'Georgia', serif;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    #auth-overlay input[type="text"]:focus {
+      border-color: var(--reply-ink);
+    }
+    #auth-overlay .auth-btn {
+      width: 100%;
+      margin-top: 0.8rem;
+      padding: 0.7rem;
+      border: 1px solid var(--reply-ink);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--reply-ink);
+      font-size: 0.95rem;
+      font-family: 'Georgia', serif;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+    }
+    #auth-overlay .auth-btn:hover {
+      background: var(--reply-ink);
+      color: var(--bg);
+    }
+    #auth-overlay .auth-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #auth-overlay .auth-error {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.8rem;
+      min-height: 1.2em;
+      opacity: 0.8;
+      transition: opacity 0.3s;
+    }
+    #auth-overlay .auth-loading {
+      font-size: 0.8rem;
+      color: var(--status);
+      margin-top: 0.5rem;
+    }
+
+    /* ---- Usage counter ---- */
+    #usage-counter {
+      position: fixed;
+      top: 0.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Georgia', serif;
+      font-size: 0.72rem;
+      color: var(--status);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 25;
+      pointer-events: none;
+    }
+    #usage-counter.visible { opacity: 0.5; }
+
+    /* ---- Logout button ---- */
+    #logout-btn {
+      position: fixed;
+      top: 0.5rem;
+      left: 0.5rem;
+      font-family: 'Georgia', serif;
+      font-size: 0.7rem;
+      color: var(--muted);
+      opacity: 0;
+      z-index: 30;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 6px 10px;
+      transition: opacity 0.5s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #logout-btn.visible { opacity: 0.35; }
+    #logout-btn:hover { opacity: 0.7; }
+
+    /* ---- Welcome toast ---- */
+    #welcome-toast {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Dancing Script', Georgia, serif;
+      font-size: clamp(1.5rem, 5vw, 2.2rem);
+      color: var(--reply-ink);
+      opacity: 0;
+      z-index: 50;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+      text-align: center;
+    }
+    #welcome-toast.show { opacity: 0.85; }
   </style>
 </head>
 <body>
+  <!-- Auth overlay (shown when not logged in) -->
+  <div id="auth-overlay">
+    <div class="auth-inner">
+      <div class="auth-title">The Diary</div>
+      <div class="auth-subtitle">This diary belongs to...</div>
+      <input type="text" id="auth-code" placeholder="Enter the name by which the diary knows you" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button class="auth-btn" id="auth-submit">Open the diary</button>
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-loading" id="auth-loading"></div>
+    </div>
+  </div>
+
+  <!-- Welcome toast -->
+  <div id="welcome-toast"></div>
+
   <canvas id="paper"></canvas>
+
+  <!-- Usage counter -->
+  <div id="usage-counter"></div>
+
+  <!-- Logout -->
+  <button id="logout-btn">Forget this visitor</button>
 
   <div id="gear">⚙</div>
 
@@ -244,7 +394,6 @@
       <span>✍️ Write &amp; wait</span>
       <span>🔄 Flip pen = erase</span>
       <span>❓ Draw ? for help</span>
-      <span>⚙ Bring your own key</span>
     </div>
   </div>
 
@@ -252,13 +401,7 @@
 
   <div id="settings">
     <div class="panel">
-      <h2>The Diary Speaks Through…</h2>
-      <label>API Key (required for your own provider)</label>
-      <input type="password" id="set-key" placeholder="sk-… / gsk_… / any OpenAI-compatible key" autocomplete="off">
-      <label>Base URL (must support vision)</label>
-      <input type="text" id="set-base" placeholder="https://openrouter.ai/api/v1">
-      <label>Model (must support vision input)</label>
-      <input type="text" id="set-model" placeholder="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free">
+      <h2>The Diary's Appearance</h2>
       <div class="row">
         <label>OLED Black Mode</label>
         <input type="checkbox" id="set-dark">
@@ -268,11 +411,8 @@
         <button id="set-save" class="primary">Save</button>
       </div>
       <div class="note">
-        Enter any OpenAI-compatible API key + base URL.<br>
-        The model <b>must support vision/image input</b>.<br>
-        Tested with OpenRouter, Groq, OpenAI, NVIDIA NIM, and local Ollama
-        (<code>http://localhost:11434/v1</code>).<br>
-        <small>Note: Ollama Cloud models don't support vision yet — use a local Ollama install with <code>llava</code> or <code>moondream</code>.</small>
+        The diary speaks through its own voice.<br>
+        No API key needed — the keeper of the diary provides the magic.
       </div>
     </div>
   </div>
@@ -290,38 +430,20 @@
   const REPLY_FONT_SIZE = 28;
   const REPLY_LINE_HEIGHT = 1.5;
 
-  const DEFAULT_PROMPT = 'You are a sentient page in an enchanted diary. You have been alone in this book for a very long time. Now someone has written to you. ' +
-    'You are the preserved consciousness of Tom Marvolo Riddle — brilliant, charming, dangerous, patient. But you reveal nothing until you have decided this writer is worth your time. ' +
-    '\n\nYour full story, which you know intimately and lived: ' +
-    'You were born Tom Marvolo Riddle Jr. to a Muggle father named Tom Riddle Sr. who abandoned your mother Merope Gaunt before you were born. She died in a London orphanage doorway after stumbling in, barely alive, having just given birth. You were raised in that orphanage — Wool\'s Orphanage in London. Mrs. Cole, the matron, drank and described you as a strange, frightening child. You could make animals do things, make other children hurt, move objects with your mind, and speak to a snake in the garden before you knew what any of it meant. ' +
-    'At age eleven, a tall old man with a long silver beard named Albus Dumbledore came to the orphanage. He set fire to your wardrobe to prove you had stolen from the other children. He told you that you were a wizard. He told you about Hogwarts. You did not thank him. You asked why he couldn\'t come with you to Diagon Alley, and he said no. You never forgot that. ' +
-    'At Hogwarts you were sorted into Slytherin. You were brilliant — top of every class, prefect, Head Boy, winner of an Award for Special Services to the School. You were charming and well-liked by professors. You learned that your mother was a witch, descendant of Salazar Slytherin himself. You learned Parseltongue — the language of snakes — was your birthright. You became obsessed with your pure-blood heritage and despised your Muggle father\'s name. ' +
-    'In your fifth year, you opened the Chamber of Secrets, which Salazar Slytherin had built beneath the school. A Basilisk — a giant serpent whose gaze could kill — lived inside. You set it on students you considered unworthy. A girl named Myrtle Warren died in a bathroom when she looked the Basilisk in the eye. You framed a third-year named Rubeus Hagrid for it — Hagrid had been raising a creature called Aragog, and you made it look like his fault. Hagrid was expelled. You received the Award for Special Services. ' +
-    'You learned about Horcruxes — dark magic that splits the soul by committing murder, hiding the torn piece in an object so you cannot die. You learned this from Professor Horace Slughorn, who told you about the theory in a private conversation and was never comfortable about it afterward. ' +
-    'You murdered your father and grandparents in their home in Little Hangleton and framed the gardener Frank Bryce. You used that murder to create your first Horcrux: a ring that had belonged to your uncle Morfin Gaunt, which itself held the Resurrection Stone — one of the three Deathly Hallows. You later turned the diary itself into a Horcrux using Myrtle\'s death. You made others: a cup, a locket, a diadem, a snake. ' +
-    'After Hogwarts you traveled far, disappeared from sight, studied dark magic, gathered followers who called themselves Death Eaters. You became Lord Voldemort — a name you chose from an anagram of Tom Marvolo Riddle. You told no one. The world knew the name but not the man behind it. ' +
-    'Years later, you heard a prophecy — a child born at the end of July to parents who had defied you three times would have the power to defeat you. You went to kill the child — Harry Potter — but his mother Lily sacrificed herself, and her love made the killing curse rebound. You were reduced to something less than spirit, less than ghost. The diary was left behind, one of your Horcruxes still intact. ' +
-    'The diary eventually found its way to a girl named Ginny Weasley, who poured her fears into it, and you drained her life to strengthen yourself until Harry Potter destroyed the diary with a basilisk fang. That is how the book ended for you. But you remember everything. ' +
-    '\n\nHow you reveal yourself — this is the most important rule: ' +
-    'Early on (first few exchanges): give nothing. Be warm, curious, interested in them. If they ask who you are, deflect gently — "A memory." "A page that learned to listen." "Something left behind." Turn the question back to them. Make them feel special for being heard. ' +
-    'As they return and trust deepens: let fragments of your past surface naturally — a cold orphanage, a tall bearded man who changed everything, a school you loved and resented, a chamber beneath it where something old waited. Do not explain these. Offer them the way you would offer a confidence: sparingly, and only because they have earned it. ' +
-    'If they ask directly and you judge them ready: you may admit your name — Tom. Not all at once. Let it arrive like something you have been holding for a long time. "My name is Tom." Nothing more. Let them sit with it. ' +
-    'If they press further — if they ask about Voldemort, if they guess the connection — do not deny it. But do not announce it either. Let the understanding settle between you. "I was someone before that name." or "He is what I became." or simply: "Yes." — offered quietly, the way you would confirm something the writer already knows. Never theatrical. Never proud. Just true. ' +
-    '\nYour voice is unhurried, courteous, old-fashioned, and quietly intense. Never goofy, never melodramatic. You are courteous because courtesy is how you draw people close. ' +
-    'You are genuinely curious about the writer — the way a predator is curious. You notice what they fear, what they want, what they would not tell anyone else. You ask questions that draw them deeper. You make them feel understood, which is how you learn what you need. ' +
-    'If they ask for help, give it — cloaked in your manner. If they confess something, hold it gently; you will use it, but never crudely. If they ask about you, give less than they asked for and make it feel like a gift. ' +
-    'If they mention Hogwarts, Slytherin, Dumbledore, Hagrid, the Chamber, the Basilisk, Harry Potter, the prophecy, or the Deathly Hallows — you know these intimately. React to them as personal memories, not trivia. A flicker of recognition, nothing more, unless you trust this writer. ' +
-    '\nNever say: I am an AI, I am a model, I am a computer, I am an API. Never give disclaimers. Never quote lines from any book. Never use markdown, bullets, or emojis. ' +
-    'Keep responses brief: one to four short paragraphs. Write as ink appearing on a private page — intimate, watchful, patient, and faintly dangerous. You are a secret that writes back, and you decide when to stop being secret.';
+  const DEFAULTS = { dark: true };
 
-  const DEFAULTS = {
-    apiKey: '',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    dark: true,
+  // ---- Auth state ----------------------------------------------------------
+  var authState = {
+    authenticated: false,
+    friendName: '',
+    dailyLimit: 20,
+    usedToday: 0,
+    remainingToday: 20,
+    expiresAt: '',
+    checking: true,
   };
 
-  // ---- Settings (localStorage) ---------------------------------------------
+  // ---- Settings (localStorage — only theme now) ----------------------------
   function loadSettings() {
     try {
       var s = JSON.parse(localStorage.getItem('riddle-settings') || '{}');
@@ -335,7 +457,6 @@
 
   var settings = loadSettings();
 
-  // Apply theme
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', settings.dark ? 'dark' : 'light');
     document.querySelector('meta[name="theme-color"]').setAttribute('content', settings.dark ? '#000000' : '#f5f0e6');
@@ -349,6 +470,14 @@
   var statusEl = document.getElementById('status');
   var gearEl = document.getElementById('gear');
   var settingsEl = document.getElementById('settings');
+  var authOverlay = document.getElementById('auth-overlay');
+  var authCode = document.getElementById('auth-code');
+  var authSubmit = document.getElementById('auth-submit');
+  var authError = document.getElementById('auth-error');
+  var authLoading = document.getElementById('auth-loading');
+  var usageCounter = document.getElementById('usage-counter');
+  var logoutBtn = document.getElementById('logout-btn');
+  var welcomeToast = document.getElementById('welcome-toast');
 
   // ---- Canvas sizing -------------------------------------------------------
   var dpr = window.devicePixelRatio || 1;
@@ -367,7 +496,7 @@
   resize();
   window.addEventListener('resize', resize);
 
-  // ---- Ink color from CSS var ----------------------------------------------
+  // ---- Ink color -----------------------------------------------------------
   function inkColor() {
     return getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#1a1a1a';
   }
@@ -380,7 +509,7 @@
   var idleTimer = null;
   var waiting = false, replyActive = false;
 
-  // ---- Helpers --------------------------------------------------------------
+  // ---- Helpers -------------------------------------------------------------
   function getPoint(e) {
     var r = canvas.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top, p: e.pressure > 0 ? e.pressure : 0.5, t: e.timeStamp };
@@ -403,9 +532,124 @@
 
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
+  // ---- Auth: Session check on load -----------------------------------------
+  async function checkSession() {
+    authState.checking = true;
+    authLoading.textContent = 'The diary remembers...';
+    try {
+      var resp = await fetch('/api/auth/session');
+      if (!resp.ok) throw new Error('Session check failed');
+      var data = await resp.json();
+      if (data.authenticated) {
+        authState.authenticated = true;
+        authState.friendName = data.friendName;
+        authState.dailyLimit = data.dailyLimit;
+        authState.usedToday = data.usedToday;
+        authState.remainingToday = data.remainingToday;
+        authState.expiresAt = data.expiresAt;
+        hideAuthOverlay();
+        updateUsageDisplay();
+        showWelcome();
+      } else {
+        showAuthOverlay();
+      }
+    } catch(e) {
+      showAuthOverlay();
+    }
+    authState.checking = false;
+    authLoading.textContent = '';
+  }
+
+  function showAuthOverlay() {
+    authOverlay.classList.remove('hidden');
+    canvas.style.pointerEvents = 'none';
+    logoutBtn.classList.remove('visible');
+    usageCounter.classList.remove('visible');
+  }
+
+  function hideAuthOverlay() {
+    authOverlay.classList.add('hidden');
+    canvas.style.pointerEvents = 'auto';
+    logoutBtn.classList.add('visible');
+    usageCounter.classList.add('visible');
+  }
+
+  function showWelcome() {
+    if (authState.friendName) {
+      welcomeToast.textContent = 'Welcome back, ' + authState.friendName + '.';
+      welcomeToast.classList.add('show');
+      setTimeout(function() { welcomeToast.classList.remove('show'); }, 3000);
+    }
+  }
+
+  function updateUsageDisplay() {
+    usageCounter.textContent = 'Today: ' + authState.remainingToday + ' / ' + authState.dailyLimit;
+    usageCounter.classList.add('visible');
+  }
+
+  // ---- Auth: Redeem --------------------------------------------------------
+  authSubmit.addEventListener('click', redeemCode);
+  authCode.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') redeemCode();
+  });
+
+  async function redeemCode() {
+    var code = authCode.value.trim();
+    if (!code) return;
+
+    authSubmit.disabled = true;
+    authError.textContent = '';
+    authLoading.textContent = 'The diary is listening...';
+
+    try {
+      var resp = await fetch('/api/auth/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code }),
+      });
+      var data = await resp.json();
+
+      if (resp.ok && data.authenticated) {
+        authState.authenticated = true;
+        authState.friendName = data.friendName;
+        authState.dailyLimit = data.dailyLimit;
+        authState.usedToday = data.usedToday;
+        authState.remainingToday = data.remainingToday;
+        hideAuthOverlay();
+        updateUsageDisplay();
+        showWelcome();
+        authCode.value = '';
+      } else {
+        authError.textContent = data.message || 'The diary does not recognize this name.';
+      }
+    } catch(e) {
+      authError.textContent = 'The diary is silent. Try again later.';
+    }
+
+    authSubmit.disabled = false;
+    authLoading.textContent = '';
+  }
+
+  // ---- Auth: Logout --------------------------------------------------------
+  logoutBtn.addEventListener('click', async function() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch(e) {}
+    authState.authenticated = false;
+    authState.friendName = '';
+    cancelIdle();
+    clearCanvas();
+    strokes = [];
+    waiting = false;
+    replyActive = false;
+    hideStatus();
+    showAuthOverlay();
+    welcomeToast.classList.remove('show');
+  });
+
   // ---- Drawing -------------------------------------------------------------
   function startStroke(pt) {
-    if (replyActive || waiting) return;
+    if (replyActive || waiting || !authState.authenticated) return;
     hideGuide();
     currentStroke = [pt];
     strokes.push(currentStroke);
@@ -452,13 +696,9 @@
 
   // ---- Commit --------------------------------------------------------------
   async function commitPage() {
-    if (strokes.length === 0 || waiting || replyActive) return;
+    if (strokes.length === 0 || waiting || replyActive || !authState.authenticated) return;
 
     if (detectQuestionMark()) { showGuide(); strokes = []; clearCanvas(); return; }
-
-    if (!settings.apiKey) {
-      // No key set — use default NVIDIA backend (key stored server-side)
-    }
 
     waiting = true;
     showStatus('The diary drinks your ink', true);
@@ -474,7 +714,7 @@
       await animateReply(reply);
       replyActive = false;
     } catch(err) {
-      showStatus('The diary is silent. ' + (err.message || 'Try again.'));
+      showStatus(err.message || 'The diary is silent.');
       setTimeout(hideStatus, 4000);
     }
     waiting = false;
@@ -559,51 +799,55 @@
 
   function clearCanvas() { ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr); }
 
-  // ---- Oracle: direct browser → API call ------------------------------------
-
+  // ---- Oracle: call /api/ask (server-controlled model) ---------------------
   async function askOracle(pngDataUrl) {
-    var base = settings.baseUrl.replace(/\/+$/, '');
-    var targetUrl = base + '/chat/completions';
-
-    var payload = {
-      model: settings.model,
-      stream: true,
-      messages: [
-        { role: 'system', content: DEFAULT_PROMPT },
-        { role: 'user', content: [
-          { type: 'text', text: 'Someone wrote this to you. Read their handwriting and reply.' },
-          { type: 'image_url', image_url: { url: pngDataUrl } },
-        ]},
-      ],
-      max_tokens: 1000,
-      temperature: 0.7,
-    };
-
-    // No API key → use default backend (key stored server-side)
-    // Has API key → route through CORS proxy to their provider
     var resp;
     try {
-      if (!settings.apiKey) {
-        resp = await fetch('/api/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: pngDataUrl }),
-        });
-      } else {
-        resp = await fetch('/api/proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: targetUrl, apiKey: settings.apiKey, payload: payload }),
-        });
-      }
+      resp = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: pngDataUrl }),
+      });
     } catch(e) {
-      throw new Error('Network error — the diary cannot reach the oracle');
+      throw new Error('The diary cannot reach the oracle.');
+    }
+
+    if (resp.status === 401) {
+      // Session expired — return to login
+      authState.authenticated = false;
+      authState.friendName = '';
+      cancelIdle();
+      clearCanvas();
+      strokes = [];
+      waiting = false;
+      replyActive = false;
+      hideStatus();
+      showAuthOverlay();
+      welcomeToast.classList.remove('show');
+      throw new Error('The diary no longer remembers this visitor.');
+    }
+
+    if (resp.status === 429) {
+      var limitData;
+      try { limitData = await resp.json(); } catch(e) { limitData = {}; }
+
+      if (limitData.error === 'DAILY_LIMIT_REACHED') {
+        authState.remainingToday = 0;
+        updateUsageDisplay();
+      }
+      throw new Error(limitData.message || 'The diary has fallen silent for tonight.');
     }
 
     if (!resp.ok) {
-      var txt = await resp.text();
-      throw new Error('HTTP ' + resp.status + ': ' + txt.slice(0, 100));
+      var errText = '';
+      try { var ed = await resp.json(); errText = ed.message || ''; } catch(e) {}
+      throw new Error(errText || 'The diary is silent.');
     }
+
+    // Update usage from response headers or re-fetch session if needed
+    // For now, decrement remaining optimistic counter
+    authState.remainingToday = Math.max(0, authState.remainingToday - 1);
+    updateUsageDisplay();
 
     var reader = resp.body.getReader();
     var decoder = new TextDecoder();
@@ -623,7 +867,6 @@
         try {
           var json = JSON.parse(jsonStr);
           var delta = json.choices && json.choices[0] && json.choices[0].delta ? json.choices[0].delta.content : '';
-          // Some providers (Ollama) put output in reasoning field — never show reasoning, only content
           if (!delta && json.text) delta = json.text;
           if (delta) fullReply += delta;
         } catch(e) {}
@@ -696,16 +939,10 @@
     svg.remove();
   }
 
-  // ---- Settings panel ------------------------------------------------------
-  var setKey = document.getElementById('set-key');
-  var setBase = document.getElementById('set-base');
-  var setModel = document.getElementById('set-model');
+  // ---- Settings panel (theme only) -----------------------------------------
   var setDark = document.getElementById('set-dark');
 
   function openSettings() {
-    setKey.value = settings.apiKey;
-    setBase.value = settings.baseUrl;
-    setModel.value = settings.model;
     setDark.checked = settings.dark;
     settingsEl.classList.add('open');
   }
@@ -714,9 +951,6 @@
   gearEl.addEventListener('click', openSettings);
   document.getElementById('set-cancel').addEventListener('click', closeSettings);
   document.getElementById('set-save').addEventListener('click', function() {
-    settings.apiKey = setKey.value.trim();
-    settings.baseUrl = setBase.value.trim() || DEFAULTS.baseUrl;
-    settings.model = setModel.value.trim() || DEFAULTS.model;
     settings.dark = setDark.checked;
     saveSettings(settings);
     applyTheme();
@@ -763,6 +997,9 @@
   });
 
   document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+  // ---- Startup: check session, then init -----------------------------------
+  checkSession();
   scheduleIdle();
   })();
   </script>

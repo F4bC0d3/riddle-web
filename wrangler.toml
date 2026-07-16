@@ -2,5 +2,38 @@ name = "tomriddle"
 main = "src/worker.js"
 compatibility_date = "2024-09-23"
 
-# No AI binding — users bring their own key (NVIDIA NIM free, OpenRouter, etc.)
-# No secrets needed.
+# ---- D1 Database ----
+# After creating the DB with `npx wrangler d1 create tomriddle-auth`,
+# paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "tomriddle-auth"
+database_id = "5bba8670-1e85-4f85-b542-b859ba92cfa8"
+
+# ---- Rate Limiters ----
+# Each binding needs a unique namespace_id (any positive integer string).
+# Create them with: npx wrangler ratelimit namespace create
+[[unsafe.bindings]]
+name = "AUTH_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "10001"
+simple = { limit = 5, period = 60 }
+
+[[unsafe.bindings]]
+name = "ASK_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "10002"
+simple = { limit = 6, period = 60 }
+
+[[unsafe.bindings]]
+name = "PROXY_RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "10003"
+simple = { limit = 3, period = 60 }
+
+# ---- Environment Variables (non-secret, safe to commit) ----
+[vars]
+MODEL_NAME = "Qwen/Qwen2.5-VL-7B-Instruct"
+MODEL_BASE_URL = "https://api.siliconflow.cn/v1"
+MODEL_MAX_TOKENS = "1000"
+ENABLE_BYOK_PROXY = "false"

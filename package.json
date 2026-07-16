@@ -5,9 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "invite": "node scripts/invite-manager.mjs"
   },
   "devDependencies": {
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.111.0"
   }
 }
