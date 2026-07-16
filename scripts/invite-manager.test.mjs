@@ -58,13 +58,26 @@ function parseWranglerJson(stdout, stderr) {
 // ---- extractD1Rows ---------------------------------------------------------
 
 function extractD1Rows(parsed) {
+  const SUMMARY_KEYS = [
+    'Total queries executed', 'Rows read', 'Rows written',
+    'Database size (MB)', 'Total duration', 'Query',
+  ];
+
+  function isSummaryRow(obj) {
+    if (!obj || typeof obj !== 'object') return false;
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return false;
+    return keys.length > 0 && keys.every(k => SUMMARY_KEYS.includes(k));
+  }
+
   if (Array.isArray(parsed)) {
     if (parsed.length > 0 && parsed[0] !== null && typeof parsed[0] === 'object') {
       if ('results' in parsed[0] && Array.isArray(parsed[0].results)) {
-        return parsed[0].results;
+        return parsed[0].results.filter(r => !isSummaryRow(r));
       }
+      if (isSummaryRow(parsed[0])) return [];
       const firstKeys = Object.keys(parsed[0]);
-      if (!firstKeys.includes('results') && !firstKeys.includes('success')) {
+      if (!firstKeys.includes('results') && !firstKeys.includes('success') && !firstKeys.includes('meta')) {
         return parsed;
       }
     }
@@ -73,7 +86,7 @@ function extractD1Rows(parsed) {
 
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
     if ('results' in parsed && Array.isArray(parsed.results)) {
-      return parsed.results;
+      return parsed.results.filter(r => !isSummaryRow(r));
     }
   }
 
@@ -221,6 +234,27 @@ testExtract('multiple friends',
 testExtract('progress + Wrangler 4.x + Chinese',
   [{ results: [{ friend_name: '王小明', enabled: 1, daily_limit: 20 }], success: true, meta: {} }],
   [{ friend_name: '王小明', enabled: 1, daily_limit: 20 }]
+);
+
+// Wrangler summary object (remote D1, no table / empty DB)
+testExtract('Wrangler summary (no table)',
+  [{ 'Total queries executed': 1, 'Rows read': 0, 'Rows written': 0, 'Database size (MB)': 0.02 }],
+  []
+);
+
+// Wrangler summary with results wrapper
+testExtract('results wrapper with summary rows',
+  [{ results: [{ 'Total queries executed': 1, 'Rows read': 0 }], success: true, meta: {} }],
+  []
+);
+
+// Wrangler summary mixed with real data (should filter out summary)
+testExtract('mixed summary and data',
+  [{ results: [
+    { 'Total queries executed': 1, 'Rows read': 2 },
+    { id: 1, friend_name: 'real', enabled: 1, daily_limit: 20 },
+  ], success: true, meta: {} }],
+  [{ id: 1, friend_name: 'real', enabled: 1, daily_limit: 20 }]
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -33,7 +33,7 @@ simple = { limit = 3, period = 60 }
 
 # ---- Environment Variables (non-secret, safe to commit) ----
 [vars]
-MODEL_NAME = "Qwen/Qwen2.5-VL-7B-Instruct"
+MODEL_NAME = "Qwen/Qwen3.5-35B-A3B"
 MODEL_BASE_URL = "https://api.siliconflow.cn/v1"
 MODEL_MAX_TOKENS = "1000"
 ENABLE_BYOK_PROXY = "false"

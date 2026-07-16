@@ -875,7 +875,7 @@
     return fullReply.trim();
   }
 
-  // ---- Reply animation: SVG word-by-word fade-in ----------------------------
+  // ---- Reply animation: SVG word-by-word smooth ink reveal ------------------
   async function animateReply(text) {
     if (!text) return;
     var w = window.innerWidth, h = window.innerHeight;
@@ -912,7 +912,11 @@
       x += ww;
     }
 
-    var delay = 120;
+    // Smooth ink-reveal: each word fades in gently, overlapping slightly
+    var WORD_DELAY = 80;       // ms between each word starting its reveal
+    var FADE_DURATION = 1600;   // ms for the fade+slide transition
+    var INITIAL_OFFSET = 15;    // px — starts slightly below, drifts up
+
     for (var i = 0; i < wordSpans.length; i++) {
       var ws = wordSpans[i];
       var el = document.createElementNS(svgNS, 'text');
@@ -922,14 +926,21 @@
       el.setAttribute('font-size', REPLY_FONT_SIZE);
       el.setAttribute('fill', replyColor);
       el.style.opacity = '0';
+      el.style.transform = 'translateY(' + INITIAL_OFFSET + 'px)';
+      el.style.transition = 'opacity ' + FADE_DURATION + 'ms ease-out, transform ' + FADE_DURATION + 'ms ease-out';
       el.textContent = ws.text;
       svg.appendChild(el);
-      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-      el.style.transform = 'translateY(4px)';
-      (function(elm) {
-        setTimeout(function() { elm.style.opacity = '0.9'; elm.style.transform = 'translateY(0)'; }, 0);
-      })(el);
-      await sleep(delay);
+
+      // Force layout then animate — requestAnimationFrame ensures initial
+      // state (opacity:0, translateY) is painted before transition kicks in
+      requestAnimationFrame(function(elm) {
+        requestAnimationFrame(function() {
+          elm.style.opacity = '0.92';
+          elm.style.transform = 'translateY(0)';
+        });
+      }.bind(null, el));
+
+      await sleep(WORD_DELAY);
     }
 
     await sleep(3000);

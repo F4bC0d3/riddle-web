@@ -4,9 +4,57 @@
 
 > **在线演示：** [https://tomriddle.f4b.workers.dev](https://tomriddle.f4b.workers.dev)
 
-[MaximeRivest/riddle](https://github.com/MaximeRivest/riddle)（最初为 reMarkable Paper Pro 打造）的 Web 移植版。可在任何带浏览器的设备上运行——手机、平板、桌面端均可。Samsung S-Pen、Apple Pencil 和 Wacom 触控笔均支持完整的压感功能。
+---
 
-**邀请制访问：** 每位朋友使用独立的邀请码登录。服务器持有 API 密钥，朋友只需输入邀请码即可使用——无需自己申请任何 AI 服务的密钥。
+## 这是什么？
+
+一份部署在 Cloudflare Workers 上的 AI 手写日记网页应用。灵感来自《哈利·波特》中汤姆·里德尔的魔法日记。
+
+### 核心功能
+
+- ✍️ 在网页上用手写笔（或手指）书写，支持压感
+- ⏱️ 停笔约 3 秒后自动识别手写内容
+- 🧠 调用视觉大模型（SiliconFlow/Qwen）"读懂"你的手写文字
+- 🎭 以 Tom Riddle 的人格和语气用英文回复
+- 🖋️ 回复以 Dancing Script 手写字体逐词丝滑浮现，如墨水缓缓洇开
+- 🔑 邀请制访问：每位朋友用独立邀请码登录，无需自己申请 AI 密钥
+- 🌙 OLED 纯黑模式，适配手机/平板/桌面
+
+### 技术栈
+
+| 层     | 技术                                                                    |
+| ------ | ----------------------------------------------------------------------- |
+| 前端   | 单个 HTML 文件：Canvas 绘图 + Pointer Events 压感 + SVG 动画 + CSS 过渡 |
+| 后端   | Cloudflare Worker（`src/worker.js`）                                  |
+| 数据库 | Cloudflare D1（SQLite）：邀请码、会话、每日用量                         |
+| AI     | SiliconFlow API（OpenAI 兼容，视觉模型）                                |
+| 认证   | 邀请码 + HMAC-SHA-256 + HttpOnly Session Cookie                         |
+
+[MaximeRivest/riddle](https://github.com/MaximeRivest/riddle)（最初为 reMarkable Paper Pro 打造）的 Web 移植版。
+
+---
+
+## 给朋友：怎么用？
+
+> 把这一段发给你邀请的朋友。
+
+**1. 打开网站**——手机、平板、电脑都行。
+
+**2. 输入邀请码。** 网站会显示「This diary belongs to...」，输入朋友给你的邀请码（例如 `wangxiaoming-7k3p`），点击 **Open the diary**。
+
+**3. 登录成功！** 日记会记住你 30 天，同一台设备不需要重复输入。
+
+**4. 开始书写。** 用手指或触控笔在页面上写字，停笔几秒后墨迹会消失，Tom Riddle 会以流畅的手写体回复你。
+
+**5. （可选）暗色模式。** 点右上角 ⚙ 齿轮切换 OLED 纯黑模式。
+
+| 操作                | 效果                       |
+| ------------------- | -------------------------- |
+| 书写后停笔          | 日记读取你的手写内容并回复 |
+| 翻转触控笔 / 右键   | 擦除                       |
+| 画一个小**?** | 显示内置指南               |
+
+> 💡 **建议：** iPad + Apple Pencil 或 Android 平板 + S-Pen 体验最佳。手机上用手指或电容笔也可以。
 
 ---
 

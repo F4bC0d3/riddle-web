@@ -25,7 +25,7 @@ const CODE_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 const ALLOWED_IMAGE_TYPES = ['data:image/png', 'data:image/jpeg', 'data:image/webp'];
 
 // Server-controlled model config (SiliconFlow)
-const DEFAULT_MODEL = 'Qwen/Qwen2.5-VL-7B-Instruct';
+const DEFAULT_MODEL = 'Qwen/Qwen3.5-35B-A3B';
 const DEFAULT_MODEL_BASE = 'https://api.siliconflow.cn/v1';
 const DEFAULT_MAX_TOKENS = 1000;
 

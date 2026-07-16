@@ -20,10 +20,6 @@
 
 import { createHash, createHmac } from 'node:crypto';
 import { execSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
 
 // ---- Config ---------------------------------------------------------------
 
@@ -142,12 +138,17 @@ function parseWranglerJson(stdout, stderr) {
 //  WRANGLER EXECUTION HELPERS
 // ================================================================
 
-function runWrangler(extraArgs, filePath) {
+// execSync with --command="..." — the only mode that returns actual query
+// results on remote D1 (--file mode returns execution summaries, not rows).
+function buildWranglerCmd(json, extras) {
   const target = local ? '--local' : '--remote';
-  const fileArg = filePath ? `--file="${filePath}"` : '';
-  const allArgs = [DB_NAME, target, fileArg, ...extraArgs].filter(Boolean).join(' ');
+  const j = json ? '--json' : '';
+  return ['npx wrangler d1 execute', DB_NAME, target, j, ...extras].filter(Boolean).join(' ');
+}
+
+function runWrangler(extraArgs) {
   try {
-    return execSync(`npx wrangler d1 execute ${allArgs}`, {
+    return execSync(buildWranglerCmd(false, extraArgs), {
       encoding: 'utf-8', stdio: 'pipe', maxBuffer: 10 * 1024 * 1024,
     });
   } catch (err) {
@@ -157,12 +158,9 @@ function runWrangler(extraArgs, filePath) {
   }
 }
 
-function runWranglerJson(extraArgs, filePath) {
-  const target = local ? '--local' : '--remote';
-  const fileArg = filePath ? `--file="${filePath}"` : '';
-  const allArgs = [DB_NAME, target, '--json', fileArg, ...extraArgs].filter(Boolean).join(' ');
+function runWranglerJson(extraArgs) {
   try {
-    const stdout = execSync(`npx wrangler d1 execute ${allArgs}`, {
+    const stdout = execSync(buildWranglerCmd(true, extraArgs), {
       encoding: 'utf-8', stdio: 'pipe', maxBuffer: 10 * 1024 * 1024,
     });
     return parseWranglerJson(stdout, '');
@@ -189,22 +187,18 @@ function buildSQL(sql, params) {
   });
 }
 
-function tempFile(sql, params) {
-  const p = join(tmpdir(), `riddle-invite-${randomUUID()}.sql`);
-  writeFileSync(p, buildSQL(sql, params), 'utf-8');
-  return p;
+// Collapse whitespace so newlines don't break shell command parsing
+function cleanSQL(sql) {
+  return sql.replace(/\s+/g, ' ').trim();
 }
 
-function cleanup(p) { if (existsSync(p)) unlinkSync(p); }
-
+// Quotes around the SQL value protect commas from shell splitting
 function runSQL(sql, params) {
-  const f = tempFile(sql, params);
-  try { return runWrangler([], f); } finally { cleanup(f); }
+  return runWrangler([`--command="${cleanSQL(buildSQL(sql, params))}"`]);
 }
 
 function runSQLJson(sql, params) {
-  const f = tempFile(sql, params);
-  try { return runWranglerJson([], f); } finally { cleanup(f); }
+  return runWranglerJson([`--command="${cleanSQL(buildSQL(sql, params))}"`]);
 }
 
 // ================================================================
@@ -220,20 +214,38 @@ function runSQLJson(sql, params) {
  *   [{col: val, ...}, ...]              ← plain row array
  *   {results: [...]}                     ← single object wrapper
  *   []                                   ← empty
+ *   [{summary keys...}]                  ← Wrangler summary (no table / empty db)
  */
 function extractD1Rows(parsed) {
-  // Already a plain row array: each element has no 'results' key
+  // Wrangler summary keys — if a row has these, it's NOT a D1 data row
+  const SUMMARY_KEYS = [
+    'Total queries executed', 'Rows read', 'Rows written',
+    'Database size (MB)', 'Total duration', 'Query',
+  ];
+
+  function isSummaryRow(obj) {
+    if (!obj || typeof obj !== 'object') return false;
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return false;
+    // If ALL keys are summary keys, it's a summary row
+    return keys.length > 0 && keys.every(k => SUMMARY_KEYS.includes(k));
+  }
+
+  // Array case
   if (Array.isArray(parsed)) {
-    // Check if first element looks like a Wrangler wrapper
     if (parsed.length > 0 && parsed[0] !== null && typeof parsed[0] === 'object') {
+      // Wrangler 4.x wrapper: [{results: [...], success, meta}]
       if ('results' in parsed[0] && Array.isArray(parsed[0].results)) {
-        // Wrangler 4.x wrapper: [{results: [...], success, meta}]
-        return parsed[0].results;
+        const rows = parsed[0].results;
+        // Filter out summary rows that may appear in results
+        return rows.filter(r => !isSummaryRow(r));
       }
-      // Check if it looks like a plain row (has sql column keys, not 'results'/'success'/'meta')
+      // Summary / meta object (no 'results' key) — empty result
+      if (isSummaryRow(parsed[0])) return [];
+      // Check if it looks like a plain data row (has user column keys)
       const firstKeys = Object.keys(parsed[0]);
-      if (!firstKeys.includes('results') && !firstKeys.includes('success')) {
-        return parsed; // plain row array
+      if (!firstKeys.includes('results') && !firstKeys.includes('success') && !firstKeys.includes('meta')) {
+        return parsed;
       }
     }
     return parsed;
@@ -242,7 +254,7 @@ function extractD1Rows(parsed) {
   // Single object with results
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
     if ('results' in parsed && Array.isArray(parsed.results)) {
-      return parsed.results;
+      return parsed.results.filter(r => !isSummaryRow(r));
     }
   }
 

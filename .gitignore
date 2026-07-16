@@ -5,3 +5,5 @@ node_modules/
 .env
 .env.*
 dist/
+.env.*
+dist/
