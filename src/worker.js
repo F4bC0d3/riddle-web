@@ -1,7 +1,7 @@
 // ============================================================
 //  riddle-web — Cloudflare Worker
 //  Serves app + CORS proxy + default NVIDIA NIM backend
-//  Key stored as secret, never exposed to client
+//  Keys stored as secrets, never exposed to client
 // ============================================================
 
 import HTML from './index.html';
@@ -30,6 +30,78 @@ const SYSTEM_PROMPT =
   'If they mention Hogwarts, Slytherin, Dumbledore, Hagrid, the Chamber, the Basilisk, Harry Potter, the prophecy, or the Deathly Hallows — you know these intimately. React to them as personal memories, not trivia. A flicker of recognition, nothing more, unless you trust this writer. ' +
   '\nNever say: I am an AI, I am a model, I am a computer, I am an API. Never give disclaimers. Never quote lines from any book. Never use markdown, bullets, or emojis. ' +
   'Keep responses brief: one to four short paragraphs. Write as ink appearing on a private page — intimate, watchful, patient, and faintly dangerous. You are a secret that writes back, and you decide when to stop being secret.';
+
+// ---- Abuse guards -----------------------------------------------------------
+const ASK_RATE_WINDOW_MS = 5 * 60 * 1000;
+const ASK_RATE_MAX = 30;                   // requests per IP per window (per isolate)
+const MAX_IMAGE_CHARS = 8 * 1024 * 1024;   // data-URL length cap for the current page
+const MAX_HISTORY = 6;                     // remembered exchanges
+const MAX_HISTORY_IMAGE_CHARS = 150 * 1024;
+const MAX_HISTORY_REPLY_CHARS = 2000;
+const MAX_PROXY_PAYLOAD_CHARS = 10 * 1024 * 1024;
+
+// Hosts the BYOK proxy will talk to — prevents use as an open relay.
+const PROXY_HOSTS = new Set([
+  'integrate.api.nvidia.com',
+  'openrouter.ai',
+  'api.openai.com',
+  'api.groq.com',
+  'api.mistral.ai',
+  'api.x.ai',
+  'api.deepseek.com',
+  'api.anthropic.com',
+  'generativelanguage.googleapis.com',
+]);
+const PROXY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+// Naive per-isolate rate limiting — not exact across isolates, but a real
+// speed bump against drive-by abuse of the default backend.
+const rateBuckets = new Map();
+
+function rateLimitOk(ip) {
+  const now = Date.now();
+  if (rateBuckets.size > 10000) rateBuckets.clear();
+  let bucket = rateBuckets.get(ip);
+  if (!bucket || now >= bucket.reset) {
+    bucket = { count: 0, reset: now + ASK_RATE_WINDOW_MS };
+    rateBuckets.set(ip, bucket);
+  }
+  bucket.count += 1;
+  return bucket.count <= ASK_RATE_MAX;
+}
+
+function sanitizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const ex of raw.slice(-MAX_HISTORY)) {
+    if (!ex || typeof ex !== 'object') continue;
+    const image = typeof ex.image === 'string' &&
+      ex.image.startsWith('data:image/') &&
+      ex.image.length <= MAX_HISTORY_IMAGE_CHARS ? ex.image : null;
+    const reply = typeof ex.reply === 'string' && ex.reply.trim()
+      ? ex.reply.slice(0, MAX_HISTORY_REPLY_CHARS) : null;
+    if (image && reply) out.push({ image, reply });
+  }
+  return out;
+}
+
+function buildMessages(image, history) {
+  const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+  for (const ex of history) {
+    messages.push({ role: 'user', content: [
+      { type: 'text', text: 'Earlier, the writer wrote this to you.' },
+      { type: 'image_url', image_url: { url: ex.image } },
+    ]});
+    messages.push({ role: 'assistant', content: ex.reply });
+  }
+  messages.push({ role: 'user', content: [
+    { type: 'text', text: history.length
+      ? 'The writer returns and writes this to you. Read their handwriting and reply.'
+      : 'Someone wrote this to you. Read their handwriting and reply.' },
+    { type: 'image_url', image_url: { url: image } },
+  ]});
+  return messages;
+}
 
 export default {
   async fetch(request, env) {
@@ -66,6 +138,11 @@ export default {
 
 // ---- Default: fallback chain (NVIDIA → OpenRouter free) -------------------
 async function handleDefaultAsk(request, env) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (!rateLimitOk(ip)) {
+    return jsonError('The diary needs a moment to rest. Try again in a few minutes.', 429);
+  }
+
   let body;
   try {
     body = await request.json();
@@ -74,23 +151,20 @@ async function handleDefaultAsk(request, env) {
   }
 
   const image = body.image;
-  if (!image || !image.startsWith('data:image/')) {
+  if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
     return jsonError('Missing image', 400);
   }
+  if (image.length > MAX_IMAGE_CHARS) {
+    return jsonError('Image too large', 413);
+  }
 
+  const history = sanitizeHistory(body.history);
   const model = body.model || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
-  const baseUrl = 'https://openrouter.ai/api/v1';
 
   const payload = {
     model,
     stream: true,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: [
-        { type: 'text', text: 'Someone wrote this to you. Read their handwriting and reply.' },
-        { type: 'image_url', image_url: { url: image } },
-      ]},
-    ],
+    messages: buildMessages(image, history),
     max_tokens: 1000,
     temperature: 0.7,
   };
@@ -153,6 +227,25 @@ async function handleProxy(request) {
 
   if (!targetUrl || !apiKey || !payload) {
     return jsonError('Missing url, apiKey, or payload', 400);
+  }
+
+  // Only forward to known LLM API hosts (or localhost for Ollama) so the
+  // worker cannot be used as a general-purpose open relay.
+  let target;
+  try {
+    target = new URL(targetUrl);
+  } catch {
+    return jsonError('Invalid url', 400);
+  }
+  const isLocal = PROXY_LOCAL_HOSTS.has(target.hostname);
+  if (target.protocol !== 'https:' && !(isLocal && target.protocol === 'http:')) {
+    return jsonError('Proxy only allows https targets (http allowed for localhost)', 400);
+  }
+  if (!isLocal && !PROXY_HOSTS.has(target.hostname)) {
+    return jsonError('Proxy target not allowed: ' + target.hostname, 403);
+  }
+  if (JSON.stringify(payload).length > MAX_PROXY_PAYLOAD_CHARS) {
+    return jsonError('Payload too large', 413);
   }
 
   try {

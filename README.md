@@ -27,15 +27,17 @@ That's it. No secrets to set. You'll get `https://tomriddle.<your-subdomain>.wor
 ## How it works
 
 ```
-Write on canvas → 2.8s idle → ink fades → PNG sent to vision LLM → reply streams back word-by-word in Dancing Script → fades away
+Write on canvas → 2.8s idle → ink fades → downscaled JPEG sent to vision LLM → reply streams back word-by-word in Dancing Script → fades away
 ```
+
+The diary **remembers**: the last few exchanges (a small image of what you wrote + Tom's reply) are kept in your browser's localStorage and sent along with each new message — so Tom can slowly get to know you, the way the persona is written to. Tap **Forget me** in settings to burn the memory. Nothing is stored server-side.
 
 The entire app is a single HTML file (`src/index.html`). The Cloudflare Worker (`src/worker.js`) serves it and provides two API endpoints:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/ask` | Default backend — uses NVIDIA NIM with a server-side secret (no user key needed) |
-| `POST /api/proxy` | BYOK — forwards to user's own API with CORS headers (for providers like OpenAI that don't send CORS) |
+| `POST /api/ask` | Default backend — uses NVIDIA NIM with a server-side secret (no user key needed). Per-IP rate limited, image size capped |
+| `POST /api/proxy` | BYOK — forwards to user's own API with CORS headers (for providers like OpenAI that don't send CORS). Allowlisted hosts only |
 
 ## Compatible providers
 
@@ -69,6 +71,9 @@ Then in the diary settings, use `http://localhost:11434/v1` as the base URL and 
 - 🎭 **Tom Riddle persona** — enigmatic, mysterious, in-character
 - 🖋️ **Dancing Script** handwriting font for replies
 - ⚡ **Streaming** — reply appears word-by-word as it streams from the LLM
+- 🧠 **Memory** — Tom remembers your last few exchanges (localStorage only); **Forget me** wipes it
+- 🛡️ **Hardened worker** — per-IP rate limiting on the default backend, host allowlist on the BYOK proxy
+- 🗜️ **Small payloads** — page is downscaled to ≤1024px JPEG before sending (much faster, cheaper)
 - 🔒 **No backend secrets** — deploy without setting any API keys
 
 ## Gestures
@@ -78,8 +83,8 @@ Then in the diary settings, use `http://localhost:11434/v1` as the base URL and 
 | Write, then rest your pen | The diary drinks your ink and Tom replies |
 | Flip the pen / right-click | Erase |
 | Draw a small **?** | Summon the built-in guide |
-| Press `Escape` | Clear everything |
-| Tap **⚙** | Settings (API key, model, theme) |
+| Press `Escape` | Clear everything (also cancels an in-flight reply) |
+| Tap **⚙** | Settings (API key, model, theme, **Forget me**) |
 
 ## Deploy to other platforms
 
