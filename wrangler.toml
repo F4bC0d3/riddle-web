@@ -2,5 +2,6 @@ name = "tomriddle"
 main = "src/worker.js"
 compatibility_date = "2024-09-23"
 
-# No AI binding — users bring their own key (NVIDIA NIM free, OpenRouter, etc.)
-# No secrets needed.
+# Default backend needs at least one secret or it falls through to BYOK:
+#   wrangler secret put NVIDIA_API_KEY     (primary)
+#   wrangler secret put OPENROUTER_API_KEY (fallback)
