@@ -12,10 +12,14 @@ Web port of [MaximeRivest/riddle](https://github.com/MaximeRivest/riddle) (origi
 
 ```bash
 npm install
+# Optional but recommended: set a default backend so visitors don't need a key.
+# Without these, the app is BYOK-only (users must enter their own key in ⚙).
+echo "nvapi-…" | npx wrangler secret put NVIDIA_API_KEY
+echo "sk-or-…" | npx wrangler secret put OPENROUTER_API_KEY   # fallback
 npx wrangler deploy
 ```
 
-That's it. No secrets to set. You'll get `https://tomriddle.<your-subdomain>.workers.dev`.
+You'll get `https://tomriddle.<your-subdomain>.workers.dev`.
 
 ## Using it
 
