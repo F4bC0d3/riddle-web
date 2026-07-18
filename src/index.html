@@ -334,6 +334,9 @@
     </div>
   </div>
 
+  <script type="importmap">
+  { "imports": { "three": "https://unpkg.com/three@0.166.1/build/three.module.js" } }
+  </script>
   <script>
   (() => {
   'use strict';
@@ -460,6 +463,57 @@
 
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
+  // ---- 3D layer (ponytail: optional, app still works if it fails) ----------
+  // 2D canvas stays as input + drawing surface; it's also uploaded to a tilted
+  // plane via CanvasTexture. Parallax + sway only. No raycast input rewrite.
+  var three = { dirty: true, ok: false };
+  function markDirty() { three.dirty = true; }
+  function initThree() {
+    import('three').then(function(THREE) {
+      try {
+        var renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        Object.assign(renderer.domElement.style, {
+          position: 'fixed', inset: '0', zIndex: '3', pointerEvents: 'none',
+        });
+        document.body.appendChild(renderer.domElement);
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 50);
+        camera.position.set(0, -0.6, 4.4);
+        camera.lookAt(0, 0, 0);
+        var texture = new THREE.CanvasTexture(canvas);
+        var H = 4.0;
+        var plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(H * (window.innerWidth / window.innerHeight), H),
+          new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+        );
+        plane.rotation.x = -0.10;
+        scene.add(plane);
+        var mx = 0, my = 0;
+        window.addEventListener('pointermove', function(e) {
+          mx = (e.clientX / window.innerWidth) * 2 - 1;
+          my = (e.clientY / window.innerHeight) * 2 - 1;
+        });
+        window.addEventListener('resize', function() {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        var t0 = performance.now();
+        renderer.setAnimationLoop(function(now) {
+          var t = (now - t0) / 1000;
+          plane.rotation.y = Math.sin(t * 0.4) * 0.012 + mx * 0.04;
+          plane.rotation.x = -0.10 + my * 0.03;
+          if (three.dirty) { texture.needsUpdate = true; three.dirty = false; }
+          renderer.render(scene, camera);
+        });
+        three.ok = true;
+      } catch (e) { /* no WebGL, no 3D */ }
+    }).catch(function() { /* no network, no 3D */ });
+  }
+  if (matchMedia('(prefers-reduced-motion: no-preference)').matches) initThree();
+
   // ---- Drawing -------------------------------------------------------------
   function startStroke(pt) {
     if (replyActive || waiting) return;
@@ -485,6 +539,7 @@
     ctx.beginPath();
     ctx.moveTo(midX, midY);
     lastX = pt.x; lastY = pt.y; lastP = p;
+    markDirty();
   }
 
   function endStroke() {
@@ -500,6 +555,7 @@
     ctx.arc(x, y, ERASER_RADIUS, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    markDirty();
     strokes = strokes.map(function(s) {
       return s.filter(function(pt) { return Math.hypot(pt.x - x, pt.y - y) > ERASER_RADIUS; });
     }).filter(function(s) { return s.length > 0; });
@@ -562,6 +618,7 @@
         ctx.globalAlpha = alpha;
         redrawAllStrokes();
         ctx.restore();
+        markDirty();
       }, FADE_DURATION * step);
     });
   }
@@ -623,7 +680,7 @@
     return tmp.toDataURL('image/png');
   }
 
-  function clearCanvas() { ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr); }
+  function clearCanvas() { ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr); markDirty(); }
 
   // ---- Oracle: direct browser → API call ------------------------------------
 
