@@ -78,11 +78,7 @@ async function handleDefaultAsk(request, env) {
     return jsonError('Missing image', 400);
   }
 
-  const model = body.model || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
-  const baseUrl = 'https://openrouter.ai/api/v1';
-
   const payload = {
-    model,
     stream: true,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -104,14 +100,13 @@ async function handleDefaultAsk(request, env) {
   for (const provider of apiKeys) {
     if (!provider.key) continue;
     try {
-      const payloadOverride = provider.model !== model ? { ...payload, model: provider.model } : payload;
       const resp = await fetch(provider.url + '/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + provider.key,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payloadOverride),
+        body: JSON.stringify({ ...payload, model: provider.model }),
       });
 
       if (resp.ok) {
