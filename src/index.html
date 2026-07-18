@@ -132,6 +132,8 @@
       cursor: crosshair;
       z-index: 2;
     }
+    /* Once WebGL is up, the 2D canvas is input+texture only; the 3D plane is the ink. */
+    body.three-ok #paper { opacity: 0; }
 
     /* ---- Guide overlay ---- */
     #guide {
@@ -503,12 +505,13 @@
         var t0 = performance.now();
         renderer.setAnimationLoop(function(now) {
           var t = (now - t0) / 1000;
-          plane.rotation.y = Math.sin(t * 0.4) * 0.012 + mx * 0.04;
-          plane.rotation.x = -0.10 + my * 0.03;
+          plane.rotation.y = Math.sin(t * 0.4) * 0.02 + mx * 0.08;
+          plane.rotation.x = -0.12 + my * 0.06;
           if (three.dirty) { texture.needsUpdate = true; three.dirty = false; }
           renderer.render(scene, camera);
         });
         three.ok = true;
+        document.body.classList.add('three-ok');   // hide 2D canvas, plane is the ink now
       } catch (e) { /* no WebGL, no 3D */ }
     }).catch(function() { /* no network, no 3D */ });
   }
@@ -755,7 +758,7 @@
     return fullReply.trim();
   }
 
-  // ---- Reply animation: SVG word-by-word ink-bleed fade-in -----------------
+  // ---- Reply animation: SVG word-by-word fade-in ----------------------------
   async function animateReply(text) {
     if (!text) return;
     var w = window.innerWidth, h = window.innerHeight;
